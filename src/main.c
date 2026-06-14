@@ -46,10 +46,7 @@ typedef struct Chip8
 
 void Enforce(bool Condition, const char* Message)
 {
-    if (Condition)
-    {
-        return;
-    }
+    if (Condition) { return; }
 
     printf("%s\n", Message);
     exit(EXIT_FAILURE);
@@ -87,10 +84,7 @@ int main(int argc, char* argv[])
     memset(Emulator.GFX, 0, sizeof(Emulator.GFX));
     memset(Emulator.Key, 0, sizeof(Emulator.Key));
 
-    for (int i = 0; i < 80; i++)
-    {
-        Emulator.Memory[i] = Chip8FontSet[i];
-    }
+    for (int i = 0; i < 80; i++) { Emulator.Memory[i] = Chip8FontSet[i]; }
 
     Emulator.DelayTimer = 0;
     Emulator.SoundTimer = 0;
@@ -109,10 +103,7 @@ int main(int argc, char* argv[])
     Enforce(fread(Buffer, 1, GameSize, Game) >= GameSize, "Failed to properly read game into buffer");
     Enforce(fclose(Game) == 0, "Failed to close file properly");
 
-    for (int i = 0; i < GameSize; i++)
-    {
-        Emulator.Memory[i + 512] = Buffer[i];
-    }
+    for (int i = 0; i < GameSize; i++) { Emulator.Memory[i + 512] = Buffer[i]; }
 
     // Emulation loop
     while (!WindowShouldClose())
@@ -165,11 +156,7 @@ int main(int argc, char* argv[])
             unsigned short NN = Emulator.OpCode & 0x00FF;
             unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
 
-            if (Emulator.V[X] == NN)
-            {
-                Emulator.PC += 2;
-            }
-
+            if (Emulator.V[X] == NN) { Emulator.PC += 2; }
             break;
         }
         case 0x4000:
@@ -177,11 +164,7 @@ int main(int argc, char* argv[])
             unsigned short NN = Emulator.OpCode & 0x00FF;
             unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
 
-            if (Emulator.V[X] != NN)
-            {
-                Emulator.PC += 2;
-            }
-
+            if (Emulator.V[X] != NN) { Emulator.PC += 2; }
             break;
         }
         case 0x5000:
@@ -191,11 +174,7 @@ int main(int argc, char* argv[])
             unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
             unsigned short Y = (Emulator.OpCode >> 4) & 0x000F;
 
-            if (Emulator.V[X] == Emulator.V[Y])
-            {
-                Emulator.PC += 2;
-            }
-
+            if (Emulator.V[X] == Emulator.V[Y]) { Emulator.PC += 2; }
             break;
         }
         case 0x6000:
@@ -204,7 +183,6 @@ int main(int argc, char* argv[])
             unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
 
             Emulator.V[X] = NN;
-
             break;
         }
         case 0x7000:
@@ -213,7 +191,6 @@ int main(int argc, char* argv[])
             unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
 
             Emulator.V[X] += NN;
-
             break;
         }
         case 0x8000:
@@ -226,7 +203,6 @@ int main(int argc, char* argv[])
                 unsigned short Y = (Emulator.OpCode >> 4) & 0x000F;
 
                 Emulator.V[X] = Emulator.V[Y];
-
                 break;
             }
             case 0x0001:
@@ -235,7 +211,6 @@ int main(int argc, char* argv[])
                 unsigned short Y = (Emulator.OpCode >> 4) & 0x000F;
 
                 Emulator.V[X] |= Emulator.V[Y];
-
                 break;
             }
             case 0x0002:
@@ -244,7 +219,6 @@ int main(int argc, char* argv[])
                 unsigned short Y = (Emulator.OpCode >> 4) & 0x000F;
 
                 Emulator.V[X] &= Emulator.V[Y];
-
                 break;
             }
             case 0x0003:
@@ -253,7 +227,6 @@ int main(int argc, char* argv[])
                 unsigned short Y = (Emulator.OpCode >> 4) & 0x000F;
 
                 Emulator.V[X] ^= Emulator.V[Y];
-
                 break;
             }
             case 0x0004:
@@ -261,17 +234,10 @@ int main(int argc, char* argv[])
                 unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
                 unsigned short Y = (Emulator.OpCode >> 4) & 0x000F;
 
-                if ((int)Emulator.V[X] + (int)Emulator.V[Y] >= 256)
-                {
-                    Emulator.V[15] = 1;
-                }
-                else
-                {
-                    Emulator.V[15] = 0;
-                }
+                if ((int)Emulator.V[X] + (int)Emulator.V[Y] >= 256) { Emulator.V[15] = 1; }
+                else { Emulator.V[15] = 0; }
 
                 Emulator.V[X] += Emulator.V[Y];
-
                 break;
             }
             case 0x0005:
@@ -279,17 +245,10 @@ int main(int argc, char* argv[])
                 unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
                 unsigned short Y = (Emulator.OpCode >> 4) & 0x000F;
 
-                if (Emulator.V[X] >= Emulator.V[Y])
-                {
-                    Emulator.V[15] = 1;
-                }
-                else
-                {
-                    Emulator.V[15] = 0;
-                }
+                if (Emulator.V[X] >= Emulator.V[Y]) { Emulator.V[15] = 1; }
+                else { Emulator.V[15] = 0; }
 
                 Emulator.V[X] -= Emulator.V[Y];
-
                 break;
             }
             case 0x0006:
@@ -298,7 +257,6 @@ int main(int argc, char* argv[])
 
                 Emulator.V[15] = Emulator.V[X] & 0x01;
                 Emulator.V[X] >>= 1;
-
                 break;
             }
             case 0x0007:
@@ -306,17 +264,10 @@ int main(int argc, char* argv[])
                 unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
                 unsigned short Y = (Emulator.OpCode >> 4) & 0x000F;
 
-                if (Emulator.V[Y] >= Emulator.V[X])
-                {
-                    Emulator.V[15] = 1;
-                }
-                else
-                {
-                    Emulator.V[15] = 0;
-                }
+                if (Emulator.V[Y] >= Emulator.V[X]) { Emulator.V[15] = 1; }
+                else { Emulator.V[15] = 0; }
 
                 Emulator.V[X] = Emulator.V[Y] - Emulator.V[X];
-
                 break;
             }
             case 0x000E:
@@ -325,7 +276,6 @@ int main(int argc, char* argv[])
 
                 Emulator.V[15] = (Emulator.V[X] >> 7) & 0x01;
                 Emulator.V[X] <<= 1;
-
                 break;
             }
             default:
@@ -340,11 +290,7 @@ int main(int argc, char* argv[])
             unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
             unsigned short Y = (Emulator.OpCode >> 4) & 0x000F;
 
-            if (Emulator.V[X] != Emulator.V[Y])
-            {
-                Emulator.PC += 2;
-            }
-
+            if (Emulator.V[X] != Emulator.V[Y]) { Emulator.PC += 2; }
             break;
         }
         case 0xA000:
@@ -381,11 +327,7 @@ int main(int argc, char* argv[])
                 {
                     if ((Pixel & (0x80 >> Xline)) != 0)
                     {
-                        if (Emulator.GFX[(X + Xline + ((Y + Yline) * 64))] == 1)
-                        {
-                            Emulator.V[15] = 1;
-                        }
-
+                        if (Emulator.GFX[(X + Xline + ((Y + Yline) * 64))] == 1) { Emulator.V[15] = 1; }
                         Emulator.GFX[X + Xline + ((Y + Yline) * 64)] ^= 1;
                     }
                 }
@@ -402,22 +344,14 @@ int main(int argc, char* argv[])
             {
                 unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
 
-                if (Emulator.Key[Emulator.V[X] & 0x0F] == 1)
-                {
-                    Emulator.PC += 2;
-                }
-
+                if (Emulator.Key[Emulator.V[X] & 0x0F] == 1) { Emulator.PC += 2; }
                 break;
             }
             case 0xA1:
             {
                 unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
 
-                if (Emulator.Key[Emulator.V[X] & 0x0F] == 0)
-                {
-                    Emulator.PC += 2;
-                }
-
+                if (Emulator.Key[Emulator.V[X] & 0x0F] == 0) { Emulator.PC += 2; }
                 break;
             }
             default:
@@ -451,11 +385,7 @@ int main(int argc, char* argv[])
                     }
                 }
 
-                if (!KeyPress)
-                {
-                    Emulator.PC -= 2;
-                }
-
+                if (!KeyPress) { Emulator.PC -= 2; }
                 break;
             }
             case 0x0015:
@@ -494,22 +424,14 @@ int main(int argc, char* argv[])
             {
                 unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
 
-                for (int i = 0; i <= X; i++)
-                {
-                    Emulator.Memory[Emulator.I + i] = Emulator.V[i];
-                }
-
+                for (int i = 0; i <= X; i++) { Emulator.Memory[Emulator.I + i] = Emulator.V[i]; }
                 break;
             }
             case 0x0065:
             {
                 unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
 
-                for (int i = 0; i <= X; i++)
-                {
-                    Emulator.V[i] = Emulator.Memory[Emulator.I + i];
-                }
-
+                for (int i = 0; i <= X; i++) { Emulator.V[i] = Emulator.Memory[Emulator.I + i]; }
                 break;
             }
             default:
@@ -524,16 +446,10 @@ int main(int argc, char* argv[])
         }
 
         // Update timers
-        if (Emulator.DelayTimer > 0)
-        {
-            Emulator.DelayTimer--;
-        }
+        if (Emulator.DelayTimer > 0) { Emulator.DelayTimer--; }
         if (Emulator.SoundTimer > 0)
         {
-            if (Emulator.SoundTimer == 1)
-            {
-                printf("Beep!\n");
-            }
+            if (Emulator.SoundTimer == 1) { printf("Beep!\n"); }
             Emulator.SoundTimer--;
         }
 
@@ -547,10 +463,7 @@ int main(int argc, char* argv[])
             {
                 for (int j = 0; j < 32; j++)
                 {
-                    if (Emulator.GFX[64 * j + i] == 1)
-                    {
-                        DrawRectangle(Scale* i, Scale* j, Scale, Scale, WHITE);
-                    }
+                    if (Emulator.GFX[64 * j + i] == 1) { DrawRectangle(Scale * i, Scale * j, Scale, Scale, WHITE); }
                 }
             }
 
