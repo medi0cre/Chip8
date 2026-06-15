@@ -57,7 +57,7 @@ int main(int argc, char* argv[])
 	if (argc != 2)
 	{
 		printf("Please include the name of the game you want to play\n");
-		printf("For example: ./Chip8.exe Pong.ch8");
+		printf("For example: ./Chip8.exe Pong.ch8\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -94,10 +94,10 @@ int main(int argc, char* argv[])
     Enforce(Game != NULL, "Failed to load game");
     Enforce(fseek(Game, 0, SEEK_END) == 0, "Failed to go to the end of the file");
     long GameSize = ftell(Game);
-    Enforce(GameSize <= 3584, "Game is too big to fit into memory");
+    Enforce(GameSize > 0 && GameSize <= 3584, "Game is too big to fit into memory");
     rewind(Game);
 
-    printf("Loaded Pong.ch8: %ld bytes\n", GameSize);
+    printf("Loaded %s: %ld bytes\n", argv[1], GameSize);
     unsigned char* Buffer = (unsigned char*)malloc(GameSize);
     Enforce(Buffer != NULL, "Failed to malloc memory for game");
     Enforce(fread(Buffer, 1, GameSize, Game) >= GameSize, "Failed to properly read game into buffer");
