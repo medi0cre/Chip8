@@ -327,6 +327,7 @@ int main(int argc, char* argv[])
                 {
                     if ((Pixel & (0x80 >> Xline)) != 0)
                     {
+                        Enforce((X + Xline + ((Y + Yline) * 64)) < 64 * 32, "Trying to write out of bounds");
                         if (Emulator.GFX[(X + Xline + ((Y + Yline) * 64))] == 1) { Emulator.V[15] = 1; }
                         Emulator.GFX[X + Xline + ((Y + Yline) * 64)] ^= 1;
                     }
