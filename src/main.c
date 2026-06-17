@@ -54,12 +54,12 @@ void Enforce(bool Condition, const char* Message)
 
 int main(int argc, char* argv[])
 {
-	if (argc != 2)
-	{
-		printf("Please include the name of the game you want to play\n");
-		printf("For example: ./Chip8.exe Pong.ch8\n");
-		exit(EXIT_FAILURE);
-	}
+    if (argc != 2)
+    {
+        printf("Please include the name of the game you want to play\n");
+        printf("For example: ./Chip8.exe Pong.ch8\n");
+        exit(EXIT_FAILURE);
+    }
 
     Chip8 Emulator = { 0 };
 
