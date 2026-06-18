@@ -474,10 +474,10 @@ int main(int argc, char* argv[])
         }
 
         // Store Key state (Press and release)
-        Emulator.Key[1] = (unsigned char)IsKeyDown(KEY_KP_1);
-        Emulator.Key[2] = (unsigned char)IsKeyDown(KEY_KP_2);
-        Emulator.Key[3] = (unsigned char)IsKeyDown(KEY_KP_3);
-        Emulator.Key[12] = (unsigned char)IsKeyDown(KEY_KP_4);
+        Emulator.Key[1] = (unsigned char)IsKeyDown(KEY_ONE);
+        Emulator.Key[2] = (unsigned char)IsKeyDown(KEY_TWO);
+        Emulator.Key[3] = (unsigned char)IsKeyDown(KEY_THREE);
+        Emulator.Key[12] = (unsigned char)IsKeyDown(KEY_FOUR);
 
         Emulator.Key[4] = (unsigned char)IsKeyDown(KEY_Q);
         Emulator.Key[5] = (unsigned char)IsKeyDown(KEY_W);
