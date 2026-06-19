@@ -84,6 +84,7 @@ void EmulateCycles(Chip8* Emulator)
     for (int n = 0; n < InstructionsPerSecond / 60; n++)
     {
         // Fetch Opcode
+        Enforce(Emulator->PC < 4095, "Program counter out of bounds!");
         Emulator->OpCode = Emulator->Memory[Emulator->PC] << 8 | Emulator->Memory[Emulator->PC + 1];
         Emulator->PC += 2;
 
@@ -108,8 +109,8 @@ void EmulateCycles(Chip8* Emulator)
             }
             case 0x00EE:
             {
+                Enforce(Emulator->SP > 0, "Invalid value of stack pointer");
                 Emulator->SP--;
-                Enforce(Emulator->SP < 16, "Invalid value of stack pointer");
                 Emulator->PC = Emulator->Stack[Emulator->SP];
                 break;
             }
@@ -126,9 +127,9 @@ void EmulateCycles(Chip8* Emulator)
         }
         case 0x2000:
         {
+            Enforce(Emulator->SP < 15, "Invalid value of stack pointer");
             Emulator->Stack[Emulator->SP] = Emulator->PC;
             Emulator->SP++;
-            Enforce(Emulator->SP < 16, "Invalid value of stack pointer");
             Emulator->PC = NNN;
             break;
         }
@@ -279,7 +280,7 @@ void EmulateCycles(Chip8* Emulator)
                 if (Emulator->Key[Emulator->V[X] & 0x0F] == 1) { Emulator->PC += 2; }
                 break;
             }
-            case 0xA1:
+            case 0x00A1:
             {
                 if (Emulator->Key[Emulator->V[X] & 0x0F] == 0) { Emulator->PC += 2; }
                 break;
@@ -345,12 +346,20 @@ void EmulateCycles(Chip8* Emulator)
             }
             case 0x0055:
             {
-                for (int i = 0; i <= X; i++) { Emulator->Memory[Emulator->I + i] = Emulator->V[i]; }
+                for (int i = 0; i <= X; i++)
+                {
+                    Enforce(Emulator->I + i < 4096, "Memory overflow");
+                    Emulator->Memory[Emulator->I + i] = Emulator->V[i];
+                }
                 break;
             }
             case 0x0065:
             {
-                for (int i = 0; i <= X; i++) { Emulator->V[i] = Emulator->Memory[Emulator->I + i]; }
+                for (int i = 0; i <= X; i++)
+                {
+                    Enforce(Emulator->I + i < 4096, "Memory overflow");
+                    Emulator->V[i] = Emulator->Memory[Emulator->I + i];
+                }
                 break;
             }
             default:
