@@ -6,6 +6,11 @@
 
 #include "raylib.h"
 
+#define InstructionsPerSecond 700
+#define Scale 16
+#define Width (Scale * 64)
+#define Height (Scale * 32)
+
 unsigned char Chip8FontSet[80] =
 {
     0xF0, 0x90, 0x90, 0x90, 0xF0,
@@ -47,9 +52,348 @@ typedef struct Chip8
 void Enforce(bool Condition, const char* Message)
 {
     if (Condition) { return; }
-
     printf("%s\n", Message);
     exit(EXIT_FAILURE);
+}
+
+void GetUserInput(Chip8* Emulator)
+{
+    Emulator->Key[1] = (unsigned char)IsKeyDown(KEY_ONE);
+    Emulator->Key[2] = (unsigned char)IsKeyDown(KEY_TWO);
+    Emulator->Key[3] = (unsigned char)IsKeyDown(KEY_THREE);
+    Emulator->Key[12] = (unsigned char)IsKeyDown(KEY_FOUR);
+
+    Emulator->Key[4] = (unsigned char)IsKeyDown(KEY_Q);
+    Emulator->Key[5] = (unsigned char)IsKeyDown(KEY_W);
+    Emulator->Key[6] = (unsigned char)IsKeyDown(KEY_E);
+    Emulator->Key[13] = (unsigned char)IsKeyDown(KEY_R);
+
+    Emulator->Key[7] = (unsigned char)IsKeyDown(KEY_A);
+    Emulator->Key[8] = (unsigned char)IsKeyDown(KEY_S);
+    Emulator->Key[9] = (unsigned char)IsKeyDown(KEY_D);
+    Emulator->Key[14] = (unsigned char)IsKeyDown(KEY_F);
+
+    Emulator->Key[10] = (unsigned char)IsKeyDown(KEY_Z);
+    Emulator->Key[0] = (unsigned char)IsKeyDown(KEY_X);
+    Emulator->Key[11] = (unsigned char)IsKeyDown(KEY_C);
+    Emulator->Key[15] = (unsigned char)IsKeyDown(KEY_V);
+}
+
+void EmulateCycles(Chip8* Emulator)
+{
+    for (int n = 0; n < InstructionsPerSecond / 60; n++)
+    {
+        // Fetch Opcode
+        Emulator->OpCode = Emulator->Memory[Emulator->PC] << 8 | Emulator->Memory[Emulator->PC + 1];
+        Emulator->PC += 2;
+
+        // Decode Opcode
+        const unsigned short X = (Emulator->OpCode >> 8) & 0x000F;
+        const unsigned short Y = (Emulator->OpCode >> 4) & 0x000F;
+        const unsigned short N = Emulator->OpCode & 0x000F;
+        const unsigned short NN = Emulator->OpCode & 0x00FF;
+        const unsigned short NNN = Emulator->OpCode & 0x0FFF;
+
+        switch (Emulator->OpCode & 0xF000)
+        {
+        case 0x0000:
+        {
+            switch (NN)
+            {
+            case 0x00E0:
+            {
+                memset(Emulator->GFX, 0, sizeof(Emulator->GFX));
+                Emulator->DrawFlag = true;
+                break;
+            }
+            case 0x00EE:
+            {
+                Emulator->SP--;
+                Enforce(Emulator->SP < 16, "Invalid value of stack pointer");
+                Emulator->PC = Emulator->Stack[Emulator->SP];
+                break;
+            }
+            default:
+                Enforce(false, "Unknown OpCode encountered");
+                break;
+            }
+            break;
+        }
+        case 0x1000:
+        {
+            Emulator->PC = NNN;
+            break;
+        }
+        case 0x2000:
+        {
+            Emulator->Stack[Emulator->SP] = Emulator->PC;
+            Emulator->SP++;
+            Enforce(Emulator->SP < 16, "Invalid value of stack pointer");
+            Emulator->PC = NNN;
+            break;
+        }
+        case 0x3000:
+        {
+            if (Emulator->V[X] == NN) { Emulator->PC += 2; }
+            break;
+        }
+        case 0x4000:
+        {
+            if (Emulator->V[X] != NN) { Emulator->PC += 2; }
+            break;
+        }
+        case 0x5000:
+        {
+            Enforce((Emulator->OpCode & 0xF00F) == 0x5000, "Invalid Opcode inside 0x5XXX case");
+            if (Emulator->V[X] == Emulator->V[Y]) { Emulator->PC += 2; }
+            break;
+        }
+        case 0x6000:
+        {
+            Emulator->V[X] = NN;
+            break;
+        }
+        case 0x7000:
+        {
+            Emulator->V[X] += NN;
+            break;
+        }
+        case 0x8000:
+        {
+            switch (N)
+            {
+            case 0x0000:
+            {
+                Emulator->V[X] = Emulator->V[Y];
+                break;
+            }
+            case 0x0001:
+            {
+                Emulator->V[X] |= Emulator->V[Y];
+                break;
+            }
+            case 0x0002:
+            {
+                Emulator->V[X] &= Emulator->V[Y];
+                break;
+            }
+            case 0x0003:
+            {
+                Emulator->V[X] ^= Emulator->V[Y];
+                break;
+            }
+            case 0x0004:
+            {
+                if ((int)Emulator->V[X] + (int)Emulator->V[Y] > 255) { Emulator->V[15] = 1; }
+                else { Emulator->V[15] = 0; }
+
+                Emulator->V[X] += Emulator->V[Y];
+                break;
+            }
+            case 0x0005:
+            {
+                if (Emulator->V[X] >= Emulator->V[Y]) { Emulator->V[15] = 1; }
+                else { Emulator->V[15] = 0; }
+
+                Emulator->V[X] -= Emulator->V[Y];
+                break;
+            }
+            case 0x0006:
+            {
+                Emulator->V[15] = Emulator->V[X] & 0x01;
+                Emulator->V[X] >>= 1;
+                break;
+            }
+            case 0x0007:
+            {
+                if (Emulator->V[Y] >= Emulator->V[X]) { Emulator->V[15] = 1; }
+                else { Emulator->V[15] = 0; }
+
+                Emulator->V[X] = Emulator->V[Y] - Emulator->V[X];
+                break;
+            }
+            case 0x000E:
+            {
+                Emulator->V[15] = (Emulator->V[X] >> 7) & 0x01;
+                Emulator->V[X] <<= 1;
+                break;
+            }
+            default:
+                Enforce(false, "Unknown OpCode encountered");
+                break;
+            }
+            break;
+        }
+        case 0x9000:
+        {
+            Enforce((Emulator->OpCode & 0xF00F) == 0x9000, "Invalid opcode inside 0x9000 case");
+
+            if (Emulator->V[X] != Emulator->V[Y]) { Emulator->PC += 2; }
+            break;
+        }
+        case 0xA000:
+        {
+            Emulator->I = NNN;
+            break;
+        }
+        case 0xB000:
+        {
+            Emulator->PC = Emulator->V[0] + NNN;
+            break;
+        }
+        case 0xC000:
+        {
+            Emulator->V[X] = (rand() % 256) & NN;
+            break;
+        }
+        case 0xD000:
+        {
+            const unsigned short VX = Emulator->V[X] % 64;
+            const unsigned short VY = Emulator->V[Y] % 32;
+            unsigned short Pixel = 0;
+            Emulator->V[15] = 0;
+
+            for (int Yline = 0; Yline < N; Yline++)
+            {
+                Pixel = Emulator->Memory[Emulator->I + Yline];
+                for (int Xline = 0; Xline < 8; Xline++)
+                {
+                    if ((Pixel & (0x80 >> Xline)) != 0)
+                    {
+                        Enforce((VX + Xline + ((VY + Yline) * 64)) < 64 * 32, "Trying to write out of bounds");
+                        if (Emulator->GFX[(VX + Xline + ((VY + Yline) * 64))] == 1) { Emulator->V[15] = 1; }
+                        Emulator->GFX[VX + Xline + ((VY + Yline) * 64)] ^= 1;
+                    }
+                }
+            }
+
+            Emulator->DrawFlag = true;
+            break;
+        }
+        case 0xE000:
+        {
+            switch (NN)
+            {
+            case 0x009E:
+            {
+                if (Emulator->Key[Emulator->V[X] & 0x0F] == 1) { Emulator->PC += 2; }
+                break;
+            }
+            case 0xA1:
+            {
+                if (Emulator->Key[Emulator->V[X] & 0x0F] == 0) { Emulator->PC += 2; }
+                break;
+            }
+            default:
+                Enforce(false, "Unknown OpCode encountered inside 0xE000 case");
+                break;
+            }
+            break;
+        }
+        case 0xF000:
+        {
+            switch (NN)
+            {
+            case 0x0007:
+            {
+                Emulator->V[X] = Emulator->DelayTimer;
+                break;
+            }
+            case 0x000A:
+            {
+                bool KeyPress = false;
+
+                for (int i = 0; i < 16; i++)
+                {
+                    if (Emulator->Key[i] != 0)
+                    {
+                        Emulator->V[X] = i;
+                        KeyPress = true;
+                        break;
+                    }
+                }
+
+                if (!KeyPress) { Emulator->PC -= 2; }
+                break;
+            }
+            case 0x0015:
+            {
+                Emulator->DelayTimer = Emulator->V[X];
+                break;
+            }
+            case 0x0018:
+            {
+                Emulator->SoundTimer = Emulator->V[X];
+                break;
+            }
+            case 0x001E:
+            {
+                Emulator->I += Emulator->V[X];
+                break;
+            }
+            case 0x0029:
+            {
+                Emulator->I = (Emulator->V[X] & 0x0F) * 5;
+                break;
+            }
+            case 0x0033:
+            {
+                Emulator->Memory[Emulator->I] = Emulator->V[X] / 100;
+                Emulator->Memory[Emulator->I + 1] = (Emulator->V[X] / 10) % 10;
+                Emulator->Memory[Emulator->I + 2] = Emulator->V[X] % 10;
+                break;
+            }
+            case 0x0055:
+            {
+                for (int i = 0; i <= X; i++) { Emulator->Memory[Emulator->I + i] = Emulator->V[i]; }
+                break;
+            }
+            case 0x0065:
+            {
+                for (int i = 0; i <= X; i++) { Emulator->V[i] = Emulator->Memory[Emulator->I + i]; }
+                break;
+            }
+            default:
+                Enforce(false, "Unknown OpCode encountered inside 0xF000 case");
+                break;
+            }
+            break;
+        }
+        default:
+            Enforce(false, "Unknown OpCode encountered");
+            break;
+        }
+    }
+}
+
+void Render(Chip8* Emulator)
+{
+    // Update timers
+    if (Emulator->DelayTimer > 0) { Emulator->DelayTimer--; }
+    if (Emulator->SoundTimer > 0)
+    {
+        if (Emulator->SoundTimer > 0) { printf("Beep!\n"); }
+        Emulator->SoundTimer--;
+    }
+
+    // Draw graphics
+    if (Emulator->DrawFlag)
+    {
+        BeginDrawing();
+        ClearBackground(BLACK);
+
+        for (int i = 0; i < 64; i++)
+        {
+            for (int j = 0; j < 32; j++)
+            {
+                if (Emulator->GFX[64 * j + i] == 1) { DrawRectangle(Scale * i, Scale * j, Scale, Scale, CLITERAL(Color){ 0, 255, 0, 255 }); }
+            }
+        }
+
+        DrawFPS(Scale / 2, Scale / 2);
+        Emulator->DrawFlag = false;
+        EndDrawing();
+    }
 }
 
 int main(int argc, char* argv[])
@@ -64,9 +408,6 @@ int main(int argc, char* argv[])
     Chip8 Emulator = { 0 };
 
     // Setup graphics and input
-    const int Scale = 16;
-    const int Width = Scale * 64;
-    const int Height = Scale * 32;
     SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
     InitWindow(Width, Height, "Chip8 Emulator");
 
@@ -108,391 +449,9 @@ int main(int argc, char* argv[])
     // Emulation loop
     while (!WindowShouldClose())
     {
-        // Fetch Opcode
-        Emulator.OpCode = Emulator.Memory[Emulator.PC] << 8 | Emulator.Memory[Emulator.PC + 1];
-        Emulator.PC += 2;
-
-        // Decode Opcode
-        switch (Emulator.OpCode & 0xF000)
-        {
-        case 0x0000:
-        {
-            switch (Emulator.OpCode & 0x00FF)
-            {
-            case 0x00E0:
-            {
-                memset(Emulator.GFX, 0, sizeof(Emulator.GFX));
-                Emulator.DrawFlag = true;
-                break;
-            }
-            case 0x00EE:
-            {
-                Emulator.SP--;
-                Enforce(Emulator.SP >= 0 && Emulator.SP < 16, "Invalid value of stack pointer");
-                Emulator.PC = Emulator.Stack[Emulator.SP];
-                break;
-            }
-            default:
-                Enforce(false, "Unknown OpCode encountered");
-                break;
-            }
-            break;
-        }
-        case 0x1000:
-        {
-            Emulator.PC = Emulator.OpCode & 0x0FFF;
-            break;
-        }
-        case 0x2000:
-        {
-            Emulator.Stack[Emulator.SP] = Emulator.PC;
-            Emulator.SP++;
-            Enforce(Emulator.SP >= 0 && Emulator.SP < 16, "Invalid value of stack pointer");
-            Emulator.PC = Emulator.OpCode & 0x0FFF;
-            break;
-        }
-        case 0x3000:
-        {
-            unsigned short NN = Emulator.OpCode & 0x00FF;
-            unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
-
-            if (Emulator.V[X] == NN) { Emulator.PC += 2; }
-            break;
-        }
-        case 0x4000:
-        {
-            unsigned short NN = Emulator.OpCode & 0x00FF;
-            unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
-
-            if (Emulator.V[X] != NN) { Emulator.PC += 2; }
-            break;
-        }
-        case 0x5000:
-        {
-            Enforce((Emulator.OpCode & 0xF00F) == 0x5000, "Invalid Opcode inside 0x5XXX case");
-
-            unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
-            unsigned short Y = (Emulator.OpCode >> 4) & 0x000F;
-
-            if (Emulator.V[X] == Emulator.V[Y]) { Emulator.PC += 2; }
-            break;
-        }
-        case 0x6000:
-        {
-            unsigned short NN = Emulator.OpCode & 0x00FF;
-            unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
-
-            Emulator.V[X] = NN;
-            break;
-        }
-        case 0x7000:
-        {
-            unsigned short NN = Emulator.OpCode & 0x00FF;
-            unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
-
-            Emulator.V[X] += NN;
-            break;
-        }
-        case 0x8000:
-        {
-            switch (Emulator.OpCode & 0x000F)
-            {
-            case 0x0000:
-            {
-                unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
-                unsigned short Y = (Emulator.OpCode >> 4) & 0x000F;
-
-                Emulator.V[X] = Emulator.V[Y];
-                break;
-            }
-            case 0x0001:
-            {
-                unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
-                unsigned short Y = (Emulator.OpCode >> 4) & 0x000F;
-
-                Emulator.V[X] |= Emulator.V[Y];
-                break;
-            }
-            case 0x0002:
-            {
-                unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
-                unsigned short Y = (Emulator.OpCode >> 4) & 0x000F;
-
-                Emulator.V[X] &= Emulator.V[Y];
-                break;
-            }
-            case 0x0003:
-            {
-                unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
-                unsigned short Y = (Emulator.OpCode >> 4) & 0x000F;
-
-                Emulator.V[X] ^= Emulator.V[Y];
-                break;
-            }
-            case 0x0004:
-            {
-                unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
-                unsigned short Y = (Emulator.OpCode >> 4) & 0x000F;
-
-                if ((int)Emulator.V[X] + (int)Emulator.V[Y] >= 256) { Emulator.V[15] = 1; }
-                else { Emulator.V[15] = 0; }
-
-                Emulator.V[X] += Emulator.V[Y];
-                break;
-            }
-            case 0x0005:
-            {
-                unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
-                unsigned short Y = (Emulator.OpCode >> 4) & 0x000F;
-
-                if (Emulator.V[X] >= Emulator.V[Y]) { Emulator.V[15] = 1; }
-                else { Emulator.V[15] = 0; }
-
-                Emulator.V[X] -= Emulator.V[Y];
-                break;
-            }
-            case 0x0006:
-            {
-                unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
-
-                Emulator.V[15] = Emulator.V[X] & 0x01;
-                Emulator.V[X] >>= 1;
-                break;
-            }
-            case 0x0007:
-            {
-                unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
-                unsigned short Y = (Emulator.OpCode >> 4) & 0x000F;
-
-                if (Emulator.V[Y] >= Emulator.V[X]) { Emulator.V[15] = 1; }
-                else { Emulator.V[15] = 0; }
-
-                Emulator.V[X] = Emulator.V[Y] - Emulator.V[X];
-                break;
-            }
-            case 0x000E:
-            {
-                unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
-
-                Emulator.V[15] = (Emulator.V[X] >> 7) & 0x01;
-                Emulator.V[X] <<= 1;
-                break;
-            }
-            default:
-                Enforce(false, "Unknown OpCode encountered");
-                break;
-            }
-            break;
-        }
-        case 0x9000:
-        {
-            Enforce((Emulator.OpCode & 0xF00F) == 0x9000, "Invalid opcode inside 0x9000 case");
-            unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
-            unsigned short Y = (Emulator.OpCode >> 4) & 0x000F;
-
-            if (Emulator.V[X] != Emulator.V[Y]) { Emulator.PC += 2; }
-            break;
-        }
-        case 0xA000:
-        {
-            Emulator.I = Emulator.OpCode & 0x0FFF;
-            break;
-        }
-        case 0xB000:
-        {
-            unsigned short NNN = Emulator.OpCode & 0x0FFF;
-            Emulator.PC = Emulator.V[0] + NNN;
-            break;
-        }
-        case 0xC000:
-        {
-            unsigned short NN = Emulator.OpCode & 0x00FF;
-            unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
-
-            Emulator.V[X] = (rand() % 256) & NN;
-            break;
-        }
-        case 0xD000:
-        {
-            unsigned short X = Emulator.V[(Emulator.OpCode & 0x0F00) >> 8];
-            unsigned short Y = Emulator.V[(Emulator.OpCode & 0x00F0) >> 4];
-            unsigned short MaxHeight = Emulator.OpCode & 0x000F;
-            unsigned short Pixel = 0;
-            Emulator.V[15] = 0;
-
-            for (int Yline = 0; Yline < MaxHeight; Yline++)
-            {
-                Pixel = Emulator.Memory[Emulator.I + Yline];
-                for (int Xline = 0; Xline < 8; Xline++)
-                {
-                    if ((Pixel & (0x80 >> Xline)) != 0)
-                    {
-                        Enforce((X + Xline + ((Y + Yline) * 64)) < 64 * 32, "Trying to write out of bounds");
-                        if (Emulator.GFX[(X + Xline + ((Y + Yline) * 64))] == 1) { Emulator.V[15] = 1; }
-                        Emulator.GFX[X + Xline + ((Y + Yline) * 64)] ^= 1;
-                    }
-                }
-            }
-
-            Emulator.DrawFlag = true;
-            break;
-        }
-        case 0xE000:
-        {
-            switch (Emulator.OpCode & 0x00FF)
-            {
-            case 0x009E:
-            {
-                unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
-
-                if (Emulator.Key[Emulator.V[X] & 0x0F] == 1) { Emulator.PC += 2; }
-                break;
-            }
-            case 0xA1:
-            {
-                unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
-
-                if (Emulator.Key[Emulator.V[X] & 0x0F] == 0) { Emulator.PC += 2; }
-                break;
-            }
-            default:
-                Enforce(false, "Unknown OpCode encountered inside 0xE000 case");
-                break;
-            }
-            break;
-        }
-        case 0xF000:
-        {
-            switch (Emulator.OpCode & 0x00FF)
-            {
-            case 0x0007:
-            {
-                unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
-                Emulator.V[X] = Emulator.DelayTimer;
-                break;
-            }
-            case 0x000A:
-            {
-                unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
-                bool KeyPress = false;
-
-                for (int i = 0; i < 16; i++)
-                {
-                    if (Emulator.Key[i] != 0)
-                    {
-                        Emulator.V[X] = i;
-                        KeyPress = true;
-                        break;
-                    }
-                }
-
-                if (!KeyPress) { Emulator.PC -= 2; }
-                break;
-            }
-            case 0x0015:
-            {
-                unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
-                Emulator.DelayTimer = Emulator.V[X];
-                break;
-            }
-            case 0x0018:
-            {
-                unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
-                Emulator.SoundTimer = Emulator.V[X];
-                break;
-            }
-            case 0x001E:
-            {
-                unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
-                Emulator.I += Emulator.V[X];
-                break;
-            }
-            case 0x0029:
-            {
-                unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
-                Emulator.I = (Emulator.V[X] & 0x0F) * 5;
-                break;
-            }
-            case 0x0033:
-            {
-                unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
-                Emulator.Memory[Emulator.I] = Emulator.V[X] / 100;
-                Emulator.Memory[Emulator.I + 1] = (Emulator.V[X] / 10) % 10;
-                Emulator.Memory[Emulator.I + 2] = Emulator.V[X] % 10;
-                break;
-            }
-            case 0x0055:
-            {
-                unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
-
-                for (int i = 0; i <= X; i++) { Emulator.Memory[Emulator.I + i] = Emulator.V[i]; }
-                break;
-            }
-            case 0x0065:
-            {
-                unsigned short X = (Emulator.OpCode >> 8) & 0x000F;
-
-                for (int i = 0; i <= X; i++) { Emulator.V[i] = Emulator.Memory[Emulator.I + i]; }
-                break;
-            }
-            default:
-                Enforce(false, "Unknown OpCode encountered inside 0xF000 case");
-                break;
-            }
-            break;
-        }
-        default:
-            Enforce(false, "Unknown OpCode encountered");
-            break;
-        }
-
-        // Update timers
-        if (Emulator.DelayTimer > 0) { Emulator.DelayTimer--; }
-        if (Emulator.SoundTimer > 0)
-        {
-            if (Emulator.SoundTimer == 1) { printf("Beep!\n"); }
-            Emulator.SoundTimer--;
-        }
-
-        // Draw graphics
-        if (Emulator.DrawFlag)
-        {
-            BeginDrawing();
-            ClearBackground(BLACK);
-
-            for (int i = 0; i < 64; i++)
-            {
-                for (int j = 0; j < 32; j++)
-                {
-                    if (Emulator.GFX[64 * j + i] == 1) { DrawRectangle(Scale * i, Scale * j, Scale, Scale, WHITE); }
-                }
-            }
-
-            DrawFPS(Scale / 2, Scale / 2);
-            EndDrawing();
-            Emulator.DrawFlag = false;
-        }
-
-        // Store Key state (Press and release)
-        Emulator.Key[1] = (unsigned char)IsKeyDown(KEY_ONE);
-        Emulator.Key[2] = (unsigned char)IsKeyDown(KEY_TWO);
-        Emulator.Key[3] = (unsigned char)IsKeyDown(KEY_THREE);
-        Emulator.Key[12] = (unsigned char)IsKeyDown(KEY_FOUR);
-
-        Emulator.Key[4] = (unsigned char)IsKeyDown(KEY_Q);
-        Emulator.Key[5] = (unsigned char)IsKeyDown(KEY_W);
-        Emulator.Key[6] = (unsigned char)IsKeyDown(KEY_E);
-        Emulator.Key[13] = (unsigned char)IsKeyDown(KEY_R);
-
-        Emulator.Key[7] = (unsigned char)IsKeyDown(KEY_A);
-        Emulator.Key[8] = (unsigned char)IsKeyDown(KEY_S);
-        Emulator.Key[9] = (unsigned char)IsKeyDown(KEY_D);
-        Emulator.Key[14] = (unsigned char)IsKeyDown(KEY_F);
-
-        Emulator.Key[10] = (unsigned char)IsKeyDown(KEY_Z);
-        Emulator.Key[0] = (unsigned char)IsKeyDown(KEY_X);
-        Emulator.Key[11] = (unsigned char)IsKeyDown(KEY_C);
-        Emulator.Key[15] = (unsigned char)IsKeyDown(KEY_V);
+        GetUserInput(&Emulator);
+        EmulateCycles(&Emulator);
+        Render(&Emulator);
     }
 
     free(Buffer);
