@@ -381,7 +381,7 @@ void Render(Chip8* Emulator)
     if (Emulator->DelayTimer > 0) { Emulator->DelayTimer--; }
     if (Emulator->SoundTimer > 0)
     {
-        if (Emulator->SoundTimer > 0) { printf("Beep!\n"); }
+        if (Emulator->SoundTimer == 1) { printf("Beep!\n"); }
         Emulator->SoundTimer--;
     }
 
