@@ -6,10 +6,10 @@
 
 #include "raylib.h"
 
-#define InstructionsPerSecond 700
-#define Scale 16
-#define Width (Scale * 64)
-#define Height (Scale * 32)
+static const int InstructionsPerSecond = 700;
+static const int Scale = 16;
+static const int Width = Scale * 64;
+static const int Height = Scale * 32;
 
 unsigned char Chip8FontSet[80] =
 {
