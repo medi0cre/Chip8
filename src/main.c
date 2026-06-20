@@ -7,6 +7,7 @@
 #include "raylib.h"
 
 static const int InstructionsPerSecond = 700;
+static const int RefreshRate = 60;
 static const int Scale = 16;
 static const int Width = Scale * 64;
 static const int Height = Scale * 32;
@@ -81,7 +82,7 @@ void GetUserInput(Chip8* Emulator)
 
 void EmulateCycles(Chip8* Emulator)
 {
-    for (int n = 0; n < InstructionsPerSecond / 60; n++)
+    for (int n = 0; n < InstructionsPerSecond / RefreshRate; n++)
     {
         // Fetch Opcode
         Enforce(Emulator->PC < 4095, "Program counter out of bounds!");
