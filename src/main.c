@@ -6,7 +6,18 @@
 
 #include "raylib.h"
 
+#ifdef _WIN32
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
+#define NOGDI
+#define NOUSER
+#include <Windows.h>
+#else
+#include <dirent.h>
+#endif
+
 static const int InstructionsPerSecond = 700;
+static const int RefreshRate = 60;
 static const int Scale = 16;
 static const int Width = Scale * 64;
 static const int Height = Scale * 32;
@@ -56,6 +67,39 @@ void Enforce(bool Condition, const char* Message)
     exit(EXIT_FAILURE);
 }
 
+#ifdef _WIN32
+void PrintRoms()
+{
+    WIN32_FIND_DATA FindData = { 0 };
+    HANDLE FindHandle = FindFirstFile("../../roms/*", &FindData);
+    Enforce(FindHandle != INVALID_HANDLE_VALUE, "No roms found!");
+
+    do
+    {
+        if (strcmp(FindData.cFileName, ".") == 0 || strcmp(FindData.cFileName, "..") == 0) { continue; }
+        printf("%s\n", FindData.cFileName);
+    }
+    while (FindNextFile(FindHandle, &FindData));
+
+    FindClose(FindHandle);
+}
+#else
+void PrintRoms()
+{
+    DIR* Directory = opendir("../../roms/");
+    Enforce(Directory != NULL, "No roms found!");
+
+    struct dirent* File = NULL;
+    while ((File = readdir(Directory)) != NULL)
+    {
+        if (strcmp(File->d_name, ".") == 0 || strcmp(File->d_name, "..") == 0) { continue; }
+        printf("%s\n", File->d_name);
+    }
+
+    closedir(Directory);
+}
+#endif
+
 void GetUserInput(Chip8* Emulator)
 {
     Emulator->Key[1] = (unsigned char)IsKeyDown(KEY_ONE);
@@ -81,7 +125,7 @@ void GetUserInput(Chip8* Emulator)
 
 void EmulateCycles(Chip8* Emulator)
 {
-    for (int n = 0; n < InstructionsPerSecond / 60; n++)
+    for (int n = 0; n < InstructionsPerSecond / RefreshRate; n++)
     {
         // Fetch Opcode
         Enforce(Emulator->PC < 4095, "Program counter out of bounds!");
@@ -256,14 +300,17 @@ void EmulateCycles(Chip8* Emulator)
 
             for (int Yline = 0; Yline < N; Yline++)
             {
+                Enforce(Emulator->I + Yline < 4096, "Invalid memory write inside DXYN");
                 Pixel = Emulator->Memory[Emulator->I + Yline];
                 for (int Xline = 0; Xline < 8; Xline++)
                 {
                     if ((Pixel & (0x80 >> Xline)) != 0)
                     {
-                        Enforce((VX + Xline + ((VY + Yline) * 64)) < 64 * 32, "Trying to write out of bounds");
-                        if (Emulator->GFX[(VX + Xline + ((VY + Yline) * 64))] == 1) { Emulator->V[15] = 1; }
-                        Emulator->GFX[VX + Xline + ((VY + Yline) * 64)] ^= 1;
+                        int XIndex = (VX + Xline) % 64;
+                        int YIndex = (VY + Yline) % 32;
+
+                        if (Emulator->GFX[XIndex + (YIndex * 64)] == 1) { Emulator->V[15] = 1; }
+                        Emulator->GFX[XIndex + (YIndex * 64)] ^= 1;
                     }
                 }
             }
@@ -339,6 +386,7 @@ void EmulateCycles(Chip8* Emulator)
             }
             case 0x0033:
             {
+                Enforce(Emulator->I < 4094, "Invalid memory write inside BCD opcode");
                 Emulator->Memory[Emulator->I] = Emulator->V[X] / 100;
                 Emulator->Memory[Emulator->I + 1] = (Emulator->V[X] / 10) % 10;
                 Emulator->Memory[Emulator->I + 2] = Emulator->V[X] % 10;
@@ -381,7 +429,11 @@ void Render(Chip8* Emulator)
     if (Emulator->DelayTimer > 0) { Emulator->DelayTimer--; }
     if (Emulator->SoundTimer > 0)
     {
-        if (Emulator->SoundTimer == 1) { printf("Beep!\n"); }
+        if (Emulator->SoundTimer == 1)
+        {
+            // TODO: Implement actual sounds
+            printf("Beep!\n");
+        }
         Emulator->SoundTimer--;
     }
 
@@ -405,22 +457,20 @@ void Render(Chip8* Emulator)
     }
 }
 
-int main(int argc, char* argv[])
+int main()
 {
-    if (argc != 2)
-    {
-        printf("Please include the name of the game you want to play\n");
-        printf("For example: ./Chip8.exe Pong.ch8\n");
-        exit(EXIT_FAILURE);
-    }
+    printf("==== Chip 8 Emulator ====\n\nRoms:\n");
+    PrintRoms();
 
-    Chip8 Emulator = { 0 };
-
-    // Setup graphics and input
-    SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
-    InitWindow(Width, Height, "Chip8 Emulator");
+    char Rom[32];
+    char Path[256];
+    printf("\nEnter the name of the rom you want to play: ");
+    fgets(Rom, sizeof(Rom), stdin);
+    Rom[strcspn(Rom, "\n")] = '\0';
+    snprintf(Path, sizeof(Path), "../../roms/%s", Rom);
 
     // Initialize registers and memory once
+    Chip8 Emulator = { 0 };
     Emulator.PC = 0x200;
     Emulator.I = 0;
     Emulator.OpCode = 0;
@@ -440,20 +490,24 @@ int main(int argc, char* argv[])
     Emulator.SoundTimer = 0;
 
     // Load the game
-    FILE* Game = fopen(argv[1], "rb");
+    FILE* Game = fopen(Path, "rb");
     Enforce(Game != NULL, "Failed to load game");
     Enforce(fseek(Game, 0, SEEK_END) == 0, "Failed to go to the end of the file");
     long GameSize = ftell(Game);
     Enforce(GameSize > 0 && GameSize <= 3584, "Game is too big to fit into memory");
     rewind(Game);
 
-    printf("Loaded %s: %ld bytes\n", argv[1], GameSize);
+    printf("Loaded %s: %ld bytes\n\n", Rom, GameSize);
     unsigned char* Buffer = (unsigned char*)malloc(GameSize);
     Enforce(Buffer != NULL, "Failed to malloc memory for game");
     Enforce(fread(Buffer, 1, GameSize, Game) >= GameSize, "Failed to properly read game into buffer");
     Enforce(fclose(Game) == 0, "Failed to close file properly");
 
     for (int i = 0; i < GameSize; i++) { Emulator.Memory[i + 512] = Buffer[i]; }
+
+    // Setup graphics and input
+    SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
+    InitWindow(Width, Height, "Chip8 Emulator");
 
     // Emulation loop
     while (!WindowShouldClose())
