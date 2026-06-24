@@ -17,9 +17,7 @@ The emulator executes instructions at approximately **700 instructions per secon
 
 ## Screenshot
 
-```md
 ![Screenshot](img/gameplay.png)
-```
 
 ---
 
