@@ -6,8 +6,6 @@ This project implements the complete CHIP-8 virtual machine, including:
 
 * 4 KB memory
 * 16 general-purpose registers (V0–VF)
-* Stack and subroutines
-* Delay and sound timers
 * Sprite rendering
 * Keyboard input
 * ROM loading
@@ -19,10 +17,8 @@ The emulator executes instructions at approximately **700 instructions per secon
 
 ## Screenshot
 
-Add a screenshot here:
-
 ```md
-![Screenshot](images/screenshot.png)
+![Screenshot](img/gameplay.png)
 ```
 
 ---
@@ -35,8 +31,7 @@ Add a screenshot here:
   * Windows
   * Linux
 * ROM browser from the terminal
-* 64×32 monochrome display
-* Configurable display scaling
+* 64×32 display
 * Sprite wrapping support
 * Built-in CHIP-8 font set
 * Runtime validation and error checking
@@ -142,7 +137,7 @@ Enter the ROM filename to launch it.
 
 | Address Range | Purpose                 |
 | ------------- | ----------------------- |
-| 0x000–0x1FF   | Interpreter / font data |
+| 0x000–0x1FF   | Interpreter / Font Data |
 | 0x200–0xFFF   | Program ROM and RAM     |
 
 Programs are loaded starting at address `0x200`, following the original CHIP-8 convention.
@@ -152,15 +147,6 @@ Programs are loaded starting at address `0x200`, following the original CHIP-8 c
 * Resolution: **64 × 32**
 * Scale factor: **16**
 * Window size: **1024 × 512**
-
-### Timers
-
-The emulator implements:
-
-* Delay Timer
-* Sound Timer
-
-Both decrement at **60 Hz**.
 
 ---
 
@@ -186,17 +172,6 @@ Popular ROMs to test:
 
 ## References
 
-* Cowgod's CHIP-8 Technical Reference
+* Laurence Muller's CHIP-8 Technical Reference
 * CHIP-8 Wikipedia Page
 * Tobias V. Langhoff's CHIP-8 Guide
-
----
-
-## License
-
-MIT License
-
-```
-
-Feel free to use, modify, and distribute.
-```
