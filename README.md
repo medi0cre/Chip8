@@ -82,7 +82,7 @@ A 0 B F        Z X C V
 ### Linux
 
 ```bash
-gcc main.c -o chip8 \
+gcc src/main.c -o Chip8 \
     -lraylib \
     -lGL \
     -lm \
@@ -95,7 +95,7 @@ gcc main.c -o chip8 \
 ### Windows (MinGW)
 
 ```bash
-gcc main.c -o chip8.exe -lraylib -lopengl32 -lgdi32 -lwinmm
+gcc src/main.c -o Chip8.exe -lraylib -lopengl32 -lgdi32 -lwinmm
 ```
 
 ---
