@@ -300,6 +300,7 @@ void EmulateCycles(Chip8* Emulator)
 
             for (int Yline = 0; Yline < N; Yline++)
             {
+                Enforce(Emulator->I + Yline < 4096, "Invalid memory write inside DXYN");
                 Pixel = Emulator->Memory[Emulator->I + Yline];
                 for (int Xline = 0; Xline < 8; Xline++)
                 {
@@ -385,6 +386,7 @@ void EmulateCycles(Chip8* Emulator)
             }
             case 0x0033:
             {
+                Enforce(Emulator->I < 4094, "Invalid memory write inside BCD opcode");
                 Emulator->Memory[Emulator->I] = Emulator->V[X] / 100;
                 Emulator->Memory[Emulator->I + 1] = (Emulator->V[X] / 10) % 10;
                 Emulator->Memory[Emulator->I + 2] = Emulator->V[X] % 10;
@@ -427,7 +429,11 @@ void Render(Chip8* Emulator)
     if (Emulator->DelayTimer > 0) { Emulator->DelayTimer--; }
     if (Emulator->SoundTimer > 0)
     {
-        if (Emulator->SoundTimer == 1) { printf("Beep!\n"); }
+        if (Emulator->SoundTimer == 1)
+        {
+            // TODO: Implement actual sounds
+            printf("Beep!\n");
+        }
         Emulator->SoundTimer--;
     }
 
